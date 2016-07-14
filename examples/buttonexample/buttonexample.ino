@@ -40,8 +40,15 @@ Button butt(false);
 void
 setup(void)
 {
+#if USE_DEBUG && defined(ARDUINO)
     Serial.begin(9600);
-    delay(100);
+    // Wait for USB Serial.
+    while (!Serial) {}
+
+    // Read any input
+    delay(200);
+    while (Serial.read() >= 0) {}
+#endif
 
     pinMode (PORT_SWITCH, INPUT_PULLUP);
     butt.set_pin (PORT_SWITCH);

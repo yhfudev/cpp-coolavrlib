@@ -50,8 +50,9 @@ DEFS+=$(EXT_FLAGS)
 
 #dist_bin_SCRIPTS=tools/genpages.sh
 bin_PROGRAMS=buttonexample
-#bin_PROGRAMS+=ledblinkexample
-#bin_PROGRAMS+=pwrledbuttexample
+bin_PROGRAMS+=ledblinkexample
+bin_PROGRAMS+=pwrledbuttexample
+bin_PROGRAMS+=stlexample
 
 base_SOURCES= \
     src/button.cpp \
@@ -64,6 +65,21 @@ base_SOURCES= \
 buttonexample_SOURCES= \
     $(base_SOURCES) \
     examples/buttonexample/buttonexample.cpp \
+    $(NULL)
+
+ledblinkexample_SOURCES= \
+    $(base_SOURCES) \
+    examples/ledblinkexample/ledblinkexample.cpp \
+    $(NULL)
+
+pwrledbuttexample_SOURCES= \
+    $(base_SOURCES) \
+    examples/pwrledbuttexample/pwrledbuttexample.cpp \
+    $(NULL)
+
+stlexample_SOURCES= \
+    $(base_SOURCES) \
+    examples/stlexample/stlexample.cpp \
     $(NULL)
 
 #BUILT_SOURCES = fontutf8test/fontutf8-data.h

@@ -65,6 +65,16 @@ LEDBlink led_nopwm;
 void
 setup(void)
 {
+#if USE_DEBUG && defined(ARDUINO)
+    Serial.begin(9600);
+    // Wait for USB Serial.
+    while (!Serial) {}
+
+    // Read any input
+    delay(200);
+    while (Serial.read() >= 0) {}
+#endif
+
     pinMode(PORT_LED_PWM, OUTPUT);
     led_pwm.set_pin(PORT_LED_PWM);
     led_pwm.start_fade(FADE_TIME, LED_V_FADE1, LED_V_FADE2);
@@ -81,4 +91,17 @@ loop(void)
     fading_up_down_update(&led_pwm, &g_led_direction);
     led_nopwm.update();
 }
+
+#if ! defined(ARDUINO)
+int
+main(void)
+{
+    setup();
+    while (1) {
+        loop();
+        delay(500);
+    }
+    return 0;
+}
+#endif
 

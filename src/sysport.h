@@ -29,7 +29,10 @@
 #else
 #include <WProgram.h>
 #endif
+
+#ifdef __cplusplus__
 #include <Wire.h>
+#endif
 
 #if DEBUG
 //#define TRACE(fmt, ...) {char buf[200]; snprintf (buf, sizeof(buf), "%d [%s()] " fmt " {ln:%d, fn:" __FILE__ "}\n", millis(), __func__, ##__VA_ARGS__, __LINE__); Serial.println(buf); }
@@ -85,6 +88,7 @@ extern int digitalRead(uint8_t);
 //#define analogWrite(pin,val) TRACE("analogWrite(" # pin  ", " # val ")")
 extern void analogWrite (uint8_t pin, int val);
 
+#ifdef __cplusplus__
 class PcWire {
 public:
     void begin() {}
@@ -108,6 +112,8 @@ public:
     void println(float a) {}
 };
 static PcSerial Serial;
+#endif
+
 
 #if defined(U8G_RASPBERRY_PI)
 #include <unistd.h>
@@ -134,9 +140,9 @@ static PcSerial Serial;
 #ifndef LED_BUILTIN
 #ifdef __AVR_ATtiny85__
 #define LED_BUILTIN 1
-#endif
 #else
 #define LED_BUILTIN 13
+#endif
 #endif
 
 #endif // _SYS_PORT_H

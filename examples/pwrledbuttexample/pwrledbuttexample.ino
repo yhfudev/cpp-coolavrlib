@@ -1,8 +1,3 @@
-#include <system_configuration.h>
-#include <StandardCplusplus.h>
-#include <utility.h>
-#include <unwind-cxx.h>
-
 /**
  * @file    pwrledbuttexample.ino
  * @brief   Example of Power Button with LED
@@ -14,9 +9,11 @@
 #include "sysport.h"
 #include "pwrledbutt.h"
 
+#if defined(ARDUINO)
 // https://github.com/n0m1/Sleep_n0m1.git
 #include <Sleep_n0m1.h>
 Sleep sleep;
+#endif
 
 #ifndef TRACE
 #define TRACE(...)
@@ -69,7 +66,7 @@ ledkey_updates (void)
             if (now - tm_last_sleep > TIME_SLEEP) {
                 tm_last_sleep = now;
                 TRACE3 ("INFO: DEEP SLEEP");
-#if 1
+#if defined(ARDUINO)
                 butt.blink_led (PWRLEDBUTT_LEDT_OFF);
                 delay (200); //delay to allow serial to fully print before sleep
                 sleep.pwrDownMode(); //set sleep mode
@@ -126,10 +123,16 @@ update_signal ()
 void
 setup(void)
 {
-#if DEBUG
+#if USE_DEBUG && defined(ARDUINO)
     Serial.begin(9600);
-    delay(100);
+    // Wait for USB Serial.
+    while (!Serial) {}
+
+    // Read any input
+    delay(200);
+    while (Serial.read() >= 0) {}
 #endif
+
     pinMode(PORT_PWR_CTRL, INPUT_PULLUP);
 
     pinMode(PORT_LED_PWM, OUTPUT);
@@ -152,4 +155,17 @@ loop(void)
     ledkey_updates();
     update_signal ();
 }
+
+#if ! defined(ARDUINO)
+int
+main(void)
+{
+    setup();
+    while (1) {
+        loop();
+        delay(500);
+    }
+    return 0;
+}
+#endif
 
