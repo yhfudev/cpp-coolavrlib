@@ -19,7 +19,6 @@
 #include <StandardCplusplus.h>
 #endif
 
-
 #include <algorithm>    // std::make_heap, std::pop_heap, std::push_heap, std::sort_heap
 #include <vector>       // std::vector
 

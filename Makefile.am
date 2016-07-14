@@ -82,8 +82,8 @@ stlexample_SOURCES= \
     examples/stlexample/stlexample.cpp \
     $(NULL)
 
-#BUILT_SOURCES = fontutf8test/fontutf8-data.h
-#CLEANFILES = fontutf8test/fontutf8-data.h
+BUILT_SOURCES = examples/buttonexample/buttonexample.cpp examples/ledblinkexample/ledblinkexample.cpp examples/pwrledbuttexample/pwrledbuttexample.cpp examples/stlexample/stlexample.cpp
+CLEANFILES = examples/buttonexample/buttonexample.cpp examples/ledblinkexample/ledblinkexample.cpp examples/pwrledbuttexample/pwrledbuttexample.cpp examples/stlexample/stlexample.cpp
 
 .pde.cpp:
 	cp $< $@

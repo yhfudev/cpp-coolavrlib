@@ -7,6 +7,7 @@
  * @copyright GPL
  */
 
+#if defined(ARDUINO)
 // https://github.com/andysworkshop/avr-stl.git
 //#include <avr_config.h> // compile error
 //https://github.com/vancegroup/stlport-avr.git
@@ -14,6 +15,8 @@
 
 // uclibc
 // https://github.com/maniacbug/StandardCplusplus.git
+#include <StandardCplusplus.h>
+#endif
 
 #include <algorithm>    // std::make_heap, std::pop_heap, std::push_heap, std::sort_heap
 #include <vector>       // std::vector
