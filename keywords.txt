@@ -1,0 +1,60 @@
+#################################
+# Syntax Coloring Map For coolavrlib
+#################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+# Classes
+
+TimerInt	KEYWORD1
+PowerLedButton	KEYWORD1
+Button	KEYWORD1
+LEDBlink	KEYWORD1
+
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# LEDBlink
+start_blink	KEYWORD2
+start_fade	KEYWORD2
+stop	KEYWORD2
+is_busy	KEYWORD2
+update	KEYWORD2
+get_progress	KEYWORD2
+set_value	KEYWORD2
+is_blinking	KEYWORD2
+is_fade	KEYWORD2
+
+# Button
+get_pin	KEYWORD2
+set_pin	KEYWORD2
+update	KEYWORD2
+get_key_type	KEYWORD2
+set_user_data	KEYWORD2
+on_click	KEYWORD2
+on_start	KEYWORD2
+on_end	KEYWORD2
+on_long_press	KEYWORD2
+on_vlong_press	KEYWORD2
+
+# PowerLedButton
+set_led	KEYWORD2
+set_butt	KEYWORD2
+set_user_data	KEYWORD2
+on_poweron	KEYWORD2
+on_shutdown	KEYWORD2
+on_force_off	KEYWORD2
+update	KEYWORD2
+signal_off	KEYWORD2
+signal_ready	KEYWORD2
+blink_led	KEYWORD2
+
+
+
+
+
+
