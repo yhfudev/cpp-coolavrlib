@@ -32,7 +32,7 @@
  *     {
  *         TRACE0 ("INFO: forced off pressed");
  *     }
- *     PowerLedButton butt;
+ *     PowerLedButton2 butt;
  *     void setup(void) {
  *         Serial.begin(9600);
  *         delay(100);
@@ -50,46 +50,47 @@
  *     }
  */
 
-#ifndef _POWER_LED_BUTTON_H
-#define _POWER_LED_BUTTON_H
+#ifndef _POWER_LED_BUTTON2_H
+#define _POWER_LED_BUTTON2_H
 
-#include "button.h"
-#include "ledblink.h"
+#include <Automaton.h>
 
+#include "sysport.h"
+#include "statemachine.h"
+
+// int event( int id ); return if there's event that generate the event id
+// void action( int id ); do the action by the id
+
+#if DEBUG
+#define PWRLEDBUTT_TIMEOUT_SHUTDOWN 5000
+#define PWRLEDBUTT_TIMEOUT_SLEEP    5000
+
+#else
 #ifndef PWRLEDBUTT_TIMEOUT_SHUTDOWN
-#define PWRLEDBUTT_TIMEOUT_SHUTDOWN     180000 /* 180000 -- 180 seconds*/
+#define PWRLEDBUTT_TIMEOUT_SHUTDOWN     180000 /* 180000 -- 180 seconds and then force power off when not get a signal OFF */
 #endif
 
-#ifndef PWRLEDBUTT_LED_BRIGHT_ON
-#define PWRLEDBUTT_LED_BRIGHT_ON     150
+#ifndef PWRLEDBUTT_TIMEOUT_SLEEP
+#define PWRLEDBUTT_TIMEOUT_SLEEP     30000 /* 30000 -- 30 seconds to go to sleep when at standby mode */
 #endif
 
-#ifndef PWRLEDBUTT_LED_BRIGHT_SB1
-#define PWRLEDBUTT_LED_BRIGHT_SB1    0
 #endif
 
-#ifndef PWRLEDBUTT_LED_BRIGHT_SB2
-#define PWRLEDBUTT_LED_BRIGHT_SB2    40
-#endif
-
-#ifndef PWRLEDBUTT_LED_TIME_FADE
-#define PWRLEDBUTT_LED_TIME_FADE    1200
-#endif
-
-class PowerLedButton {
+class PowerLedButton : public StateMachine {
 public:
+
     PowerLedButton();
 
-    inline void set_led (uint8_t pwm_pin) { this->led_pwm.set_pin (pwm_pin); }
-    inline void set_butt (uint8_t digital_pin) { this->butt.set_pin (digital_pin); }
+    inline void set_led (uint8_t pwm_pin) { this->led.begin (pwm_pin); }
+    inline void set_butt (uint8_t digital_pin) { this->butt.begin(digital_pin); }
 
     inline void set_user_data (void * userdata1) { this->userdata = userdata1; }
     inline void on_poweron ( void (*function)(void * userdata) ) { this->cb_poweron = function; }
     inline void on_shutdown ( void (*function)(void * userdata) ) { this->cb_shutdown = function; }
     inline void on_force_off ( void (*function)(void * userdata) ) { this->cb_forceoff = function; }
+    inline void on_sleep ( void (*function)(void * userdata) ) { this->cb_sleep = function; }
 
-    // Update the LEDs and button status
-    void update(void);
+    void setup (void); // prepare to ready
 
     // user called:
     void signal_off (void);   // told the class that host is off now
@@ -102,46 +103,29 @@ public:
 #define PWRLEDBUTT_LEDT_ON      4
 #define PWRLEDBUTT_LEDT_OFF     5
     void blink_led (int type);
+
 private:
     void * userdata;
     void (*cb_poweron)(void * userdata);
     void (*cb_shutdown)(void * userdata);
     void (*cb_forceoff)(void * userdata);
+    void (*cb_sleep)(void * userdata); // called when at standby more than 30 seconds
 
-    unsigned long timer_prev; // the time last updated
-    unsigned long timer_len;  // the timer length
-    unsigned long timer_accu; // the accumulated time
-    void cancle_timer ();
-    int update_timer ();
-    void start_timer (int time_ms);
-
-    void update_other ();
-
-    int led_type;
-    LEDBlink led_pwm;
-    void update_led ();
-
-    #define PWRLEDBUTT_DIR_UP 1
-    #define PWRLEDBUTT_DIR_DOWN -1
-    int led_direction;
-
-    Button butt;
-    void update_butt ();
+    Atm_button butt;
+    Atm_fade led;
+    Atm_bit bit_butt;
+    Atm_bit bit_fade;
+    Atm_controller ctrl_1;
+    Atm_controller ctrl_2;
+    Atm_controller ctrl_3;
+    Atm_timer timer;
 
     inline unsigned long get_timeout_shutdown() { return PWRLEDBUTT_TIMEOUT_SHUTDOWN; }
-    inline uint8_t get_led_bright_on() { return PWRLEDBUTT_LED_BRIGHT_ON; }
-    inline uint8_t get_led_bright_sb1() { return PWRLEDBUTT_LED_BRIGHT_SB1; }
-    inline uint8_t get_led_bright_sb2() { return PWRLEDBUTT_LED_BRIGHT_SB2; }
-    inline unsigned long get_led_time_fade() { return PWRLEDBUTT_LED_TIME_FADE; }
+    inline unsigned long get_timeout_sleep() { return PWRLEDBUTT_TIMEOUT_SLEEP; }
 
-    uint8_t process_event (Button::Event &ev); // process event, return the next state
-    uint8_t current_state; // the current internal state
-
-    friend void on_butt_begin (void * userdata);
-    friend void on_butt_end (void * userdata);
-    friend void on_butt_click (void * userdata, unsigned int times);
-    friend void on_butt_long  (void * userdata);
+    virtual void process_event (StateMachine::Event &ev); // process event, return the next state
+    void enter_standby (void); // force to set the state to standby state
 };
 
-#endif // _POWER_LED_BUTTON_H
+#endif // _POWER_LED_BUTTON2_H
 

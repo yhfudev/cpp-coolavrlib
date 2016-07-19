@@ -13,6 +13,7 @@
 #define TRACE3 TRACE
 
 #define PORT_SWITCH   3
+#define PORT_LED_PWM   6
 
 void
 butt_on_click(void * userdata, unsigned int times)
@@ -35,12 +36,26 @@ butt_on_vlongpress(void * userdata)
     TRACE0 ("INFO: switch pin %d very long pressed", pin);
 }
 
+void
+butt_on_begin(void *userdata)
+{
+   digitalWrite (LED_BUILTIN, HIGH);
+   digitalWrite (PORT_LED_PWM, HIGH);
+}
+
+void
+butt_on_end(void *userdata)
+{
+   digitalWrite (LED_BUILTIN, LOW);
+   digitalWrite (PORT_LED_PWM, LOW);
+}
+
 Button butt(false);
 
 void
 setup(void)
 {
-#if USE_DEBUG && defined(ARDUINO)
+#if DEBUG && defined(ARDUINO)
     Serial.begin(9600);
     // Wait for USB Serial.
     while (!Serial) {}
@@ -56,6 +71,11 @@ setup(void)
     butt.on_click (butt_on_click);
     butt.on_long_press (butt_on_longpress);
     butt.on_vlong_press (butt_on_vlongpress);
+    butt.on_start (butt_on_begin);
+    butt.on_end (butt_on_end);
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(PORT_LED_PWM, OUTPUT);
 }
 
 void

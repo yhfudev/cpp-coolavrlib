@@ -48,11 +48,29 @@ set_user_data	KEYWORD2
 on_poweron	KEYWORD2
 on_shutdown	KEYWORD2
 on_force_off	KEYWORD2
+on_sleep	KEYWORD2
 update	KEYWORD2
 signal_off	KEYWORD2
 signal_ready	KEYWORD2
 blink_led	KEYWORD2
 
+
+# McuTimer
+McuTimer1	KEYWORD2
+McuTimer3	KEYWORD2
+McuTimer	KEYWORD1
+initialize	KEYWORD2
+start	KEYWORD2
+stop	KEYWORD2
+restart	KEYWORD2
+resume	KEYWORD2
+pwm	KEYWORD2
+disablePwm	KEYWORD2
+attachInterrupt	KEYWORD2
+detachInterrupt	KEYWORD2
+setPeriod	KEYWORD2
+setPwmDuty	KEYWORD2
+isrCallback	KEYWORD2
 
 
 
