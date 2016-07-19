@@ -110,6 +110,7 @@ public:
     void begin(int baud) {}
     void println(int a) {}
     void println(float a) {}
+    bool operator ! () { return true; }
 };
 static PcSerial Serial;
 #endif
@@ -140,6 +141,11 @@ static PcSerial Serial;
 #ifndef LED_BUILTIN
 #ifdef __AVR_ATtiny85__
 #define LED_BUILTIN 1
+#define NOT_AN_INTERRUPT (-1)
+// attiny8
+//#define digitalPinToInterrupt(p) ( (p) == 2 ? 0 : NOT_AN_INTERRUPT)
+// attiny14:
+#define digitalPinToInterrupt(p) ( (p) == 8 ? 0 : NOT_AN_INTERRUPT)
 #else
 #define LED_BUILTIN 13
 #endif

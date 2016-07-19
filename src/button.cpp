@@ -10,6 +10,64 @@
 #include "sysport.h"
 #include "button.h"
 
+/**
+TODO:
+timer for timeout
+key interrupt
+lock-free queues for both timer and key interrupt
+timeout types for states
+cancel timer: in both queue and timer
+
+
+interfaces:
+on_timer_add(userdata,time_ms), userdata=state_type
+on_timer_cancel(id)
+timer_expired:(userdata); -- create Event TIMEOUT_XX
+
+register_key_interrupt
+key_changed -- create Event PRESSED/RELEASED
+
+main loop to process the queues
+
+
+
+timer in ATmega168/328
+TIMER0 -- 8bit, is used by native Arduino timing functions such as delay() and millis().
+TIMER1 -- 16bit, is used by a Arduino Servo library.
+TIMER2 -- 8bit, is utilized by the Arduino tone()
+
+ATmega1280/2560
+TIMER1, TIMER2, TIMER3 -- identical to ATmega168/328's
+TIMER3, TIMER4, TIMER5 -- 16bit
+
+
+Arduino 101: Timers and Interrupts
+https://arduino-info.wikispaces.com/Timers-Arduino
+http://letsmakerobots.com/content/arduino-101-timers-and-interrupts
+
+Arduino ATmega328
+Pins 5 and 6: controlled by timer0
+Pins 9 and 10: controlled by timer1
+Pins 11 and 3: controlled by timer2
+
+Arduino Mega
+Pins 4 and 13: controlled by timer0
+Pins 11 and 12: controlled by timer1
+Pins 9 and10: controlled by timer2
+Pin 2, 3 and 5: controlled by timer 3
+Pin 6, 7 and 8: controlled by timer 4
+Pin 46, 45 and 44:: controlled by timer 5
+
+Microcontroller tutorial series: AVR and Arduino timer interrupts
+http://www.engblaze.com/microcontroller-tutorial-avr-and-arduino-timer-interrupts/
+
+
+Timer 1 and 3:
+http://playground.arduino.cc/Code/Timer1
+https://github.com/PaulStoffregen/TimerOne.git
+https://github.com/PaulStoffregen/TimerThree.git
+*/
+
 #ifndef TRACE
 #define TRACE(...)
 #endif
@@ -40,10 +98,15 @@
 #define BUTSW_STATE_DEBOUNCE2  5
 
 // event types
-#define BUTSW_EVT_NONE         0
-#define BUTSW_EVT_TIMEOUT      1
-#define BUTSW_EVT_PRESSED      2
-#define BUTSW_EVT_RELEASED     3
+#define BUTSW_EVT_NONE          0
+#define BUTSW_EVT_PRESSED       1
+#define BUTSW_EVT_RELEASED      2
+#define BUTSW_EVT_TIMEOUT_DB1   3
+#define BUTSW_EVT_TIMEOUT_DB2   4
+#define BUTSW_EVT_TIMEOUT_CLICK 5
+#define BUTSW_EVT_TIMEOUT_LONG  6
+#define BUTSW_EVT_TIMEOUT_READY 7
+#define BUTSW_EVT_TIMEOUT       8 /* temp */
 
 #if DEBUG
 char * val2cstr_buttsw_state(int val)
@@ -84,7 +147,7 @@ Button::Button(bool multiple_click1)
     this->pin = 0;
     this->current_state = BUTSW_STATE_READY;
     this->button_hold = false;
-    this->pressed_state = LOW;
+    this->released_state = HIGH;
     this->clicks = 0;
     this->multiple_click = multiple_click1;
 
@@ -99,37 +162,33 @@ Button::Button(bool multiple_click1)
 bool
 Button::is_pressed(uint8_t cur_state)
 {
-    if (this->pressed_state) {
-        if (cur_state) {
-            return false;
-        } else {
-            return true;
-        }
+    if (this->released_state == cur_state) {
+        return false;
     } else {
-        if (cur_state) {
-            return true;
-        } else {
-            return false;
-        }
+        return true;
     }
 }
 
 void
 Button::set_pin (uint8_t digital_pin, uint8_t pressed_state)
 {
-    this->pressed_state = pressed_state;
+    if (pressed_state == HIGH) {
+        this->released_state = LOW;
+    } else {
+        this->released_state = HIGH;
+    }
     this->pin = digital_pin;
     this->clicks = 0;
-    TRACE0 ("Button: set_pin: pin=%d, pressed_state=%d", this->pin, this->pressed_state);
+    TRACE0 ("Button: set_pin: pin=%d, pressed_state=%d", this->pin, pressed_state);
 }
 
 void
 Button::set_pin (uint8_t digital_pin)
 {
     if (digitalRead(digital_pin)) {
-        set_pin (digital_pin, HIGH);
-    } else {
         set_pin (digital_pin, LOW);
+    } else {
+        set_pin (digital_pin, HIGH);
     }
 }
 
@@ -284,14 +343,11 @@ Button::process_event (Button::Event &ev)
                 start_timer (get_timeout_vlong());
                 this->clicks = 0;
                 next_state = BUTSW_STATE_LONGPRESS;
+                break;
             } else {
                 // not possible state
                 TRACE1 ("Button: not possible in 1click with button released");
             }
-            break;
-        case BUTSW_EVT_PRESSED:
-            this->button_hold = true;
-            break;
         case BUTSW_EVT_RELEASED:
             this->button_hold = false;
             cancle_timer();
@@ -311,6 +367,9 @@ Button::process_event (Button::Event &ev)
             start_timer (get_timeout_dbounce());
             next_state = BUTSW_STATE_DEBOUNCE2;
             break;
+        case BUTSW_EVT_PRESSED:
+            this->button_hold = true;
+            break;
         default:
             TRACE3 ("Button: Unhandled : %s", VAL2CSTR_BUTTSW_EVT(ev.get_type()));
             break;
@@ -327,7 +386,9 @@ Button::process_event (Button::Event &ev)
                 if (this->OnVLongPress) {
                     this->OnVLongPress (this->userdata);
                 }
-                next_state = BUTSW_STATE_VLONGPRESS;
+                //next_state = BUTSW_STATE_VLONGPRESS;
+                start_timer (get_timeout_dbounce());
+                next_state = BUTSW_STATE_DEBOUNCE2;
             } else {
                 TRACE1 ("Button: not possible in LONG with button released");
             }

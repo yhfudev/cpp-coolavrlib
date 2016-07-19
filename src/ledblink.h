@@ -72,6 +72,7 @@ public:
 
 private:
     inline bool is_fade_prev () { if (this->color_last > 0) return true; return false; }
+    bool advance_ms(unsigned int time_diff);
 
     uint8_t pin;
     unsigned long last_step_time;

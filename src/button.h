@@ -95,6 +95,7 @@ public:
     // Update the LEDs along the blinking
     // Returns TRUE if a blink is still in process
     bool update();
+    void update_pin(uint8_t pin_state);
 
     uint8_t get_key_type (void); // return the current key type.
 
@@ -111,7 +112,6 @@ private:
     inline unsigned long get_timeout_vlong()   { return BUTSW_TIMEOUT_VLONG; }
     inline unsigned long get_timeout_2click()  { return BUTSW_TIMEOUT_2CLICK; }
 
-    void update_pin(uint8_t pin_state);
     void update_other();
 
     unsigned long longTime;
@@ -124,7 +124,7 @@ private:
     uint8_t process_event (Button::Event &ev); // process event, return the next state
     uint8_t current_state; // the current internal state
 
-    uint8_t pressed_state; // what's the state of the input, HIGH or LOW, when button pressed
+    uint8_t released_state; // what's the state of the input, HIGH or LOW, when button released
     bool is_pressed (uint8_t cur_state);
     unsigned int clicks; // the adjacent clicks (in BUTSW_TIMEOUT_2CLICK) 
 

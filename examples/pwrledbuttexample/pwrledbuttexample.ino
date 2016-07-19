@@ -7,13 +7,20 @@
  * @copyright GPL
  */
 #include "sysport.h"
+#include "ledblink.h"
 #include "pwrledbutt.h"
 
-#if defined(ARDUINO)
-// https://github.com/n0m1/Sleep_n0m1.git
-#include <Sleep_n0m1.h>
-Sleep sleep;
+#ifdef __AVR_ATtiny85__
+#define PORT_SW_ONOFF  5
+#define PORT_PWR_CTRL  4
+#define PORT_LED_PWM   3
+#else
+#define PORT_SW_ONOFF  3
+#define PORT_PWR_CTRL  2//5
+#define PORT_LED_PWM   6
 #endif
+
+#define BLINK_TIME 200
 
 #ifndef TRACE
 #define TRACE(...)
@@ -36,55 +43,55 @@ Sleep sleep;
 //#define TRACE3(...)
 #endif
 
-#ifdef __AVR_ATtiny85__
-#define PORT_SW_ONOFF  5
-#define PORT_PWR_CTRL  4
-#define PORT_LED_PWM   3
-#else
-#define PORT_SW_ONOFF  3
-#define PORT_PWR_CTRL  2//5
-#define PORT_LED_PWM   6
-#endif
 
-#define BLINK_TIME 200
+#if defined(__AVR__)
+#include <avr/sleep.h>
+
+void sleep_on_wakeup()
+{
+    // execute code here after wake-up before returning to the loop() function
+    // timers and code using timers (serial.print and more...) will not work here.
+    // we don't really need to execute any special functions here, since we
+    // just want the thing to wake up
+}
+
+void sleep_setup()
+{
+    //pinMode(wakePin, INPUT_PULLUP);
+    //attachInterrupt(digitalPinToInterrupt(2), sleep_on_wakeup, LOW); // use interrupt 0 (pin 2) and run function wakeUpNow when pin 2 gets LOW
+    attachInterrupt(digitalPinToInterrupt(PORT_SW_ONOFF), sleep_on_wakeup, CHANGE);
+}
+
+void sleep_now()
+{
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+    sleep_enable();          // enables the sleep bit in the mcucr register
+    //attachInterrupt(digitalPinToInterrupt(2), sleep_on_wakeup, LOW); // use interrupt 0 (pin 2) and run function
+    attachInterrupt(digitalPinToInterrupt(PORT_SW_ONOFF), sleep_on_wakeup, CHANGE);
+    sleep_mode();            // here the device is actually put to sleep!!
+    // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+    sleep_disable();         // first thing after waking from sleep: disable sleep...
+    detachInterrupt(digitalPinToInterrupt(PORT_SW_ONOFF));      // disables interrupt 0 on pin 2 so the wakeUpNow code will not be executed during normal running time.
+}
+#else
+#define sleep_setup() __NOT_IMPMENTED_sleep_setup
+#define sleep_now() __NOT_IMPMENTED_sleep_now
+#endif // AVR
 
 PowerLedButton butt;
 LEDBlink led_nopwm;
 
-bool is_power_off = true;
-
-#define TIME_SLEEP 10000
-unsigned long tm_last_sleep = 0;
 void
 ledkey_updates (void)
 {
-    butt.update();
     led_nopwm.update();
-    if (is_power_off) {
-        if (! led_nopwm.is_busy()) {
-            unsigned long now = millis ();
-            if (now - tm_last_sleep > TIME_SLEEP) {
-                tm_last_sleep = now;
-                TRACE3 ("INFO: DEEP SLEEP");
-#if defined(ARDUINO)
-                butt.blink_led (PWRLEDBUTT_LEDT_OFF);
-                delay (200); //delay to allow serial to fully print before sleep
-                sleep.pwrDownMode(); //set sleep mode
-                //Sleep till interrupt pin equals a particular state.
-                //In this case "low" is state 0.
-                sleep.sleepPinInterrupt(PORT_SW_ONOFF, LOW); //(interrupt Pin Number, interrupt State)
-#endif
-            }
-        }
-    }
 }
 
 void
 butt_on_poweron(void * userdata)
 {
     TRACE0 ("INFO: poweron pressed");
-    led_nopwm.start_blink(BLINK_TIME, 3);
-    is_power_off = false;
+    led_nopwm.start_blink(BLINK_TIME, 6);
 }
 
 void
@@ -99,10 +106,17 @@ butt_on_force_off(void * userdata)
 {
     TRACE0 ("INFO: forced off pressed");
     led_nopwm.start_blink(BLINK_TIME * 4, 3);
-    is_power_off = true;
 }
 
-uint8_t g_state_sig = 0;
+void
+butt_on_sleep(void * userdata)
+{
+    TRACE0 ("INFO: forced sleep");
+    delay(200); // wait for debug message send to Serial
+    sleep_now();
+}
+
+uint8_t g_state_sig = LOW;
 void
 update_signal ()
 {
@@ -123,10 +137,10 @@ update_signal ()
 void
 setup(void)
 {
-#if USE_DEBUG && defined(ARDUINO)
+#if DEBUG && defined(ARDUINO)
     Serial.begin(9600);
     // Wait for USB Serial.
-    while (!Serial) {}
+    //while (!Serial) {}
 
     // Read any input
     delay(200);
@@ -143,10 +157,13 @@ setup(void)
     butt.on_poweron (butt_on_poweron);
     butt.on_shutdown (butt_on_shutdown);
     butt.on_force_off (butt_on_force_off);
-    butt.blink_led (PWRLEDBUTT_LEDT_STANDBY);
+    butt.on_sleep (butt_on_sleep);
+    butt.setup();
 
     pinMode(LED_BUILTIN, OUTPUT);
     led_nopwm.set_pin(LED_BUILTIN); // digital pin 13.
+
+    sleep_setup();
 }
 
 void
@@ -154,6 +171,7 @@ loop(void)
 {
     ledkey_updates();
     update_signal ();
+    automaton.run();
 }
 
 #if ! defined(ARDUINO)

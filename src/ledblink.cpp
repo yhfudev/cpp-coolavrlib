@@ -10,6 +10,11 @@
 #include "sysport.h"
 #include "ledblink.h"
 
+/**
+TODO:
+timer and callback to change the LED directly.
+*/
+
 #ifndef TRACE
 #define TRACE(...)
 #endif
@@ -31,6 +36,7 @@
 //#define TRACE3(...)
 #endif
 
+#if 0
 static const PROGMEM uint8_t etable[256] = {
    0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
    1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
@@ -50,8 +56,10 @@ static const PROGMEM uint8_t etable[256] = {
  184,188,192,196,201,205,210,214,219,224,229,234,239,244,250,255,
 };
 
-#define READ_ETAB1(i) pgm_read_byte(&etable[i])
+#define READ_ETAB(i) pgm_read_byte(&etable[i])
+#else
 #define READ_ETAB(i) (i)
+#endif
 
 #if DEBUG
 void
@@ -175,18 +183,18 @@ LEDBlink::start_blink(unsigned long time_ms, unsigned int times_onoff)
         return;
     }
 
+    this->color_first = 0;
+    this->color_last = 0;
+    this->tm_length = time_ms;
+    this->tm_accum = 0;
+    this->last_step_time = millis();
+
     if (time_ms <= LEDBLINK_MIN_INTERVAL) {
         set_value (LOW);
         TRACE3 ("LEDBlink time too short!");
         LEDB_CHECK_INTEGRATE();
         return;
     }
-
-    this->color_first = 0;
-    this->color_last = 0;
-    this->tm_length = time_ms;
-    this->tm_accum = 0;
-    this->last_step_time = millis();
 
     this->times_onoff = times_onoff;
     if (this->times_onoff < 1) {
@@ -244,6 +252,65 @@ LEDBlink::start_fade(unsigned long time_ms, uint8_t pwm_first, uint8_t pwm_last)
     LEDB_CHECK_INTEGRATE();
 }
 
+
+bool
+LEDBlink::advance_ms(unsigned int time_diff)
+{
+    this->tm_accum += time_diff;
+    if (this->tm_accum >= this->tm_length) {
+        if (is_fade()) {
+            this->set_value (this->color_last);
+            this->color_first = this->color_last;
+            this->tm_accum = this->tm_length;
+            //LEDB_CHECK_INTEGRATE();
+        } else {
+            this->tm_accum = 0;
+            //LEDB_CHECK_INTEGRATE();
+            set_value(LOW);
+            this->times_onoff --;
+            if (this->times_onoff < 1) {
+                this->tm_accum = this->tm_length;
+            }
+            //LEDB_CHECK_INTEGRATE();
+        }
+    }
+    if (! is_busy()) {
+        TRACE0 ("LEDBlink task was finished, Skip update!");
+        //LEDB_CHECK_INTEGRATE();
+        return false;
+    }
+
+    if (is_fade()) {
+        // fade
+        uint8_t color = this->color_first;
+        unsigned long color_diff = abs(this->color_last - this->color_first);
+        uint8_t incval = (uint8_t)(this->tm_accum * color_diff / this->tm_length);
+        if (color < this->color_last) {
+            color += incval;
+            TRACE0 ("LEDBlink fade color up pin:%d +%d --> %d", (int)this->pin, (int)incval, (int)color);
+        } else {
+            color -= incval;
+            TRACE0 ("LEDBlink fade color down pin:%d -%d --> %d", (int)this->pin, (int)incval, (int)color);
+        }
+        set_value(color);
+        //LEDB_CHECK_INTEGRATE();
+    } else {
+        if (0 == ((this->tm_accum / this->interval) % (3) )) {
+            // off
+            TRACE0 ("LEDBlink OFF");
+            set_value(LOW);
+            //LEDB_CHECK_INTEGRATE();
+        } else {
+            // on
+            TRACE0 ("LEDBlink ON");
+            set_value(HIGH);
+            //LEDB_CHECK_INTEGRATE();
+        }
+    }
+    return true;
+}
+
+// update the led by checking the time.
 bool
 LEDBlink::update()
 {
@@ -274,57 +341,8 @@ LEDBlink::update()
         return true;
     }
 
-    this->tm_accum += time_diff;
-    if (this->tm_accum >= this->tm_length) {
-        if (is_fade()) {
-            this->set_value (this->color_last);
-            this->color_first = this->color_last;
-            this->tm_accum = this->tm_length;
-            LEDB_CHECK_INTEGRATE();
-        } else {
-            this->tm_accum = 0;
-            LEDB_CHECK_INTEGRATE();
-            set_value(LOW);
-            this->times_onoff --;
-            if (this->times_onoff < 1) {
-                this->tm_accum = this->tm_length;
-            }
-            LEDB_CHECK_INTEGRATE();
-        }
-    }
-    if (! is_busy()) {
-        TRACE0 ("LEDBlink task was finished, Skip update!");
-        LEDB_CHECK_INTEGRATE();
-        return false;
-    }
+    this->advance_ms (time_diff);
 
-    if (is_fade()) {
-        // fade
-        uint8_t color = this->color_first;
-        unsigned long color_diff = abs(this->color_last - this->color_first);
-        uint8_t incval = (uint8_t)(this->tm_accum * color_diff / this->tm_length);
-        if (color < this->color_last) {
-            color += incval;
-            TRACE0 ("LEDBlink fade color up pin:%d +%d --> %d", (int)this->pin, (int)incval, (int)color);
-        } else {
-            color -= incval;
-            TRACE0 ("LEDBlink fade color down pin:%d -%d --> %d", (int)this->pin, (int)incval, (int)color);
-        }
-        set_value(color);
-        LEDB_CHECK_INTEGRATE();
-    } else {
-        if (0 == ((this->tm_accum / this->interval) % (3) )) {
-            // off
-            TRACE0 ("LEDBlink OFF");
-            set_value(LOW);
-            LEDB_CHECK_INTEGRATE();
-        } else {
-            // on
-            TRACE0 ("LEDBlink ON");
-            set_value(HIGH);
-            LEDB_CHECK_INTEGRATE();
-        }
-    }
     this->last_step_time = now;
 
     LEDB_CHECK_INTEGRATE();
